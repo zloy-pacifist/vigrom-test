@@ -1,0 +1,6 @@
+framework:
+    cache:
+        prefix_seed: zloy/test
+
+        app: cache.adapter.redis
+        default_redis_provider: '%env(REDIS_PROVIDER)%'

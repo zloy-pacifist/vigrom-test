@@ -1,0 +1,74 @@
+version: '3'
+
+services:
+  nginx:
+    image: nginx
+    restart: always
+    volumes:
+      - ./src/frontend:/app
+      - ./docker/front/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - ${HTTP_PORT_HOST}:80
+
+  backend:
+    image: demo-backend:current
+    build:
+      context: ./docker/php
+      dockerfile: ./app.dockerfile
+      args:
+        FILES_UID: ${FILES_UID}
+        FILES_GID: ${FILES_GID}
+    restart: always
+    volumes:
+      - ./src/backend:/app
+      - ./docker/php/app.start.sh:/start.sh
+      - ./docker/php/php.ini:/usr/local/etc/php/php.ini
+    depends_on:
+      - mysql
+      - redis
+      - nginx
+
+  front:
+    image: demo-frontend:current
+    build:
+      context: docker/front
+      dockerfile: ./front.dockerfile
+      args:
+        FILES_UID: ${FILES_UID}
+        FILES_GID: ${FILES_GID}
+    restart: on-failure
+    volumes:
+      - ./src/frontend:/app
+      - ./docker/front/front.start.sh:/start.sh
+
+  mysql:
+    build:
+      context: ./docker/mysql
+      dockerfile: ./mysql.dockerfile
+      args:
+        FILES_UID: ${FILES_UID}
+        FILES_GID: ${FILES_GID}
+    cap_add:
+      - SYS_NICE
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - ${MYSQL_PORT_HOST}:3306
+    volumes:
+      - ./.cache/mysql:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+
+  redis:
+    build:
+      context: ./docker/redis
+      dockerfile: ./redis.dockerfile
+      args:
+        FILES_UID: ${FILES_UID}
+        FILES_GID: ${FILES_GID}
+    restart: always
+    ports:
+      - ${REDIS_PORT_HOST}:6379
+    volumes:
+      - ./.cache/redis:/data
